@@ -1,0 +1,49 @@
+import MySQLdb
+from tableausdk import Extract as tde
+import pandas as pd
+import numpy as np
+from pandas import DataFrame
+import pandas.io.sql as psql
+
+def get_data(sql):
+    db=MySQLdb.connect("db-slave-ex.internal.linqia.com","alfredo","L1nq1aR0ck5","linqia")
+    df = pd.read_sql(sql, db)
+    db.close()
+    return df
+    
+def export_to_tableau(df, filename='data.tde'):
+    try:
+        tdefile = tde.Extract(filename)
+    except:
+        os.remove(filename)
+        tdefile = tde.Extract(filename)
+    
+    tableDef = tde.TableDefinition()
+    type_lookup = { 
+        'int64': 7, #INTEGER 
+        'float64': 10, #DOUBLE
+        'object': 15  #STRING
+    }
+    # tableDef.addColumn("field_type7", 7)   #INTEGER
+    # tableDef.addColumn("field_type10", 10) #DOUBLE
+    # tableDef.addColumn("field_type11", 11) #BOOLEAN
+    # tableDef.addColumn("field_type12", 12) #DATE
+    # tableDef.addColumn("field_type13", 13) #DATETIME
+    # tableDef.addColumn("field_type14", 14) #DURATION
+    # tableDef.addColumn("field_type15", 15) #CHAR_STRING
+    # tableDef.addColumn("field_type16", 16) #UNICODE_STRING
+
+    for col in df.columns.tolist():
+        tableDef.addColumn(col, type_lookup[str(df[col].dtype)]) #1
+
+    table = tdefile.addTable("Extract", tableDef)
+    newrow = tde.Row(tableDef) 
+
+    for i in range(0,df.shape[0]):
+        newrow.setInteger(0, int(df.iloc[i,0])) #column,value
+        newrow.setInteger(1, int(df.iloc[i,1]))
+        newrow.setCharString(2, str(df.iloc[i,2]))
+        newrow.setCharString(3, str(df.iloc[i,3]))
+        table.insert(newrow)
+
+    tdefile.close()
